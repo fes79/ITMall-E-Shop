@@ -1,5 +1,4 @@
 const API = 'https://raw.githubusercontent.com/GeekBrainsTutorial/online-store-api/master/responses';
-
 class List {
     constructor(url, container, list = list2){
         this.container = container;
@@ -7,6 +6,7 @@ class List {
         this.url = url;
         this.goods = [];
         this.allProducts = [];
+        this.filtered = [];
         this._init();
     }
     getJson(url){
@@ -26,12 +26,23 @@ class List {
     render(){
         const block = document.querySelector(this.container);
         for (let product of this.goods){
-            //console.log(this.constructor.name);
-            const productObj = new this.list[this.constructor.name](product);//мы сделали объект товара либо CartItem, либо ProductItem
+            const productObj = new this.list[this.constructor.name](product);
             console.log(productObj);
             this.allProducts.push(productObj);
             block.insertAdjacentHTML('beforeend', productObj.render());
         }
+    }
+    filter(value){
+        const regexp = new RegExp(value, 'i');
+        this.filtered = this.allProducts.filter(product => regexp.test(product.product_name));
+        this.allProducts.forEach(el => {
+            const block = document.querySelector(`.product-item[data-id="${el.id_product}"]`);
+            if(!this.filtered.includes(el)){
+                block.classList.add('invisible');
+            } else {
+                block.classList.remove('invisible');
+            }
+        })
     }
     _init(){
         return false
@@ -45,7 +56,7 @@ class Item{
         this.id_product = el.id_product;
         this.img = img;
     }
-    render(){//генерация товара для каталога товаров
+    render(){
         return `<div class="product-item" data-id="${this.id_product}">
                 <img src="${this.img}" alt="Some img">
                 <div class="desc">
@@ -54,7 +65,7 @@ class Item{
                     <button class="buy-btn"
                     data-id="${this.id_product}"
                     data-name="${this.product_name}"
-                    data-price="${this.price}">Add to cart</button>
+                    data-price="${this.price}">Купить</button>
                 </div>
             </div>`
     }
@@ -65,16 +76,18 @@ class ProductsList extends List{
         super(url, container);
         this.cart = cart;
         this.getJson()
-            .then(data => this.handleData(data));//handleData запускает отрисовку либо каталога товаров, либо списка товаров корзины
+            .then(data => this.handleData(data));
     }
     _init(){
         document.querySelector(this.container).addEventListener('click', e => {
             if(e.target.classList.contains('buy-btn')){
-//                console.log(e.target);
                 this.cart.addProduct(e.target);
             }
         });
-        
+        document.querySelector('.search-form').addEventListener('submit', e => {
+            e.preventDefault();
+            this.filter(document.querySelector('.search-field').value)
+        })
     }
 }
 
@@ -86,7 +99,7 @@ class Cart extends List{
         super(url, container);
         this.getJson()
             .then(data => {
-                this.handleData(data.contents);//вывели все товары в корзине 
+                this.handleData(data.contents);
             });
     }
     addProduct(element){
@@ -132,18 +145,18 @@ class Cart extends List{
             })
     }
     _updateCart(product){
-    let block = document.querySelector(`.cart-item[data-id="${product.id_product}"]`);
-    block.querySelector('.product-quantity').textContent = `Quantity: ${product.quantity}`;
-    block.querySelector('.product-price').textContent = `$${product.quantity*product.price}`;
+        let block = document.querySelector(`.cart-item[data-id="${product.id_product}"]`);
+        block.querySelector('.product-quantity').textContent = `Quantity: ${product.quantity}`;
+        block.querySelector('.product-price').textContent = `$${product.quantity*product.price}`;
     }
     _init(){
         document.querySelector('.btn-cart').addEventListener('click', () => {
             document.querySelector(this.container).classList.toggle('invisible');
         });
         document.querySelector(this.container).addEventListener('click', e => {
-        if(e.target.classList.contains('del-btn')){
-            this.removeProduct(e.target);
-        }
+            if(e.target.classList.contains('del-btn')){
+                this.removeProduct(e.target);
+            }
         })
     }
 
@@ -176,10 +189,7 @@ const list2 = {
     Cart: CartItem
 };
 
-
 let cart = new Cart();
-let products = new ProductsList(cart);//Если мы хотим использовать в классе
-//методы другого класса, то удобнее всего в конструктор передать объект класса,
-//методы которого нам нужны в данном классе
-//products.getJson(`getProducts.json`).then(data => products.handleData(data));
+let products = new ProductsList(cart);
+products.getJson(`getProducts.json`).then(data => products.handleData(data));
 
